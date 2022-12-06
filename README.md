@@ -1,4 +1,72 @@
-# CameraWebServerRecorder
+# CameraWebServerRecorder Astro Edition
+
+https://github.com/paoloinverse/CameraWebServerRecordeR_AstroEdition
+
+
+
+This is a modified version of James Zahary's awesome work at https://github.com/jameszah/CameraWebServerRecorder , I added a number of functions to turn his version of the  espressif ESP32-CAM CameraWebServer example into a functional Astrophotography / Timelapse / Dash camera device. 
+
+First of all, a filemanager is available on tcp port 8080. 
+If using the AP mode, just connect to http://192.168.4.1:8080 and the file manager will load. 
+You Will be able to download, upload and delete anything on the onboad SD card. 
+This will also help with uploading the secret.txt file with the optional wifi credentials. 
+For the file manager I integrated this library from James: https://github.com/jameszah/ESPxWebFlMgr/tree/master/esp32_sd_file_manager
+it's really well done.
+
+Also, I modified the framebuffer capture functions to override the normal timeout limit and request frames with exposure times thousands of times longer than normal.
+
+The second, and most important function I added, is the low level access to a few of the OV2640 configuration registers
+that enable this sensor to perform very long exposures, way beyond is intended usage. 
+There are 4 options: 
+- Frame time: this is the most significant byte of the frame lenght configuration register, its main effect is to stabilize the auto-exposure loop within the sensor AND to limit the maximum exposure time. Unless required to stabilize the luminance under low light, this is best left untouched and set to zero at all times. 
+- Add VSYNC lines: this is the most significant byte of the ADDVSYNK register, it extends the frame duration by adding N * 256 lines before the VSYNC signal is transmitted. This extends the exposure time enormously, especially when the XCLOCK is set to 1 MHz. For daytime usage, leave it to zero. For low light photography you may raise it carefully. For full night time astrophotography you may set it to 255. 
+- Target luminance high limit: this sets the luminance high limit for the auto exposure loop within the sensor. Raise it in case the autoexposure loop gets unstable in long exposures and low light. 
+- Target luminance low limit: same as above, you may lower it in case of instability. This makes more sense in case of unattended timelapse cameras or dash cams in low light, however the best fix still remains raising the frame time. 
+
+Tips for normal usage under low light: 
+set XCLOCK to 5 or 10 MHz, if it's still not enough then raise the AddVSYNC register, then tweak Frametime to control any auto exposure instability
+
+Tips for extremely low light and astro photography: 
+- Set the frame size to HD  1280 x 720 or higher. Anything lower is not going to work this well.
+- Set the picture quality to 1 (best!): you want to have no quantization nor compression artifacts.
+- Disable the AWB, AEC, AEC DSP, then set Exposure to 1200. Maximize the exposure before you even touch the ADD VSYNC register.
+- Disable AGC and reset the gain to 1. Anything over gain 1 will just introduce unneeded additional noise and amplify the dark current.
+- Disable BPC and WPC (white pixel correction). WPC will work well under low light, but will fail under astrophotography and just introduce artifacts.
+- disable LENC (Lens Correction). The lens correction digital filter MUST never be used under very long exposures as it worsens the dark current effect considerably. You want a background as flat and black as possible!
+- Set the ADD VSYNC directly to 255
+- Set XCLOCK to 1
+
+Next, cover the objective lens, go to the default capture page ( http://192.168.4.1/capture in Access Point mode) and capture at least 3 dark frames, save the last one. You will need it to post process the astro pictures and subctract the hot pixels.
+
+- I recommend cooling the sensor, if possible. The difference in dark current from 20C ambient temperature to 5C is DRAMATIC. 
+
+See these sample pictures taken with a wide angle objective: 
+
+20C ambient temperature dark frame, lens correction enabled:
+![image](https://github.com/paoloinverse/CameraWebServerRecordeR_AstroEdition/blob/main/dark_frame_VSHMSB255_EXP1200_GAIN1_1Meg_LC_20deg.jpg)
+
+20C ambient temperature dark frame, NO lens correction:
+![image](https://github.com/paoloinverse/CameraWebServerRecordeR_AstroEdition/blob/main/dark_frame_VSHMSB255_EXP1200_GAIN1_1Meg_noLC_20deg.jpg)
+
+5C ambient temperature dark frame, NO lens correction:
+![image](https://github.com/paoloinverse/CameraWebServerRecordeR_AstroEdition/blob/main/dark_frame_VSHMSB255_EXP1200_GAIN1_1Meg_noLC_5deg.jpg)
+
+3C ambient temperature dark frame, NO lens correction:
+![image](https://github.com/paoloinverse/CameraWebServerRecordeR_AstroEdition/blob/main/dark_frame_VSHMSB255_EXP1200_GAIN1_1Meg_noLC_3deg.jpg)
+
+3C sample shot with a wide angle lens. The red light is from a tiny red led from the portable battery bank. The scene was shot on a 3/4 moon lit area during night time. It looks like day. Please don't mind the objective, it's a tiny lens of poor quality with the infrared filter removed.
+See why it is important to save the dark frame and subtract it afterwards? Hot pixels can no longer be kept under control by the camera internal DSP, so it's best to subtact them externally during the post processing.
+![image](https://github.com/paoloinverse/CameraWebServerRecordeR_AstroEdition/blob/main/sample_frame_VSHMSB255_EXP1200_GAIN1_1Meg_noLC_3deg.jpg)
+
+Be aware that the OV2640 camera is not running under its normally intended limits, I find it surprising it can still work at such long exposures while keeping the noise and dark current at reasonable levels. 
+
+#ROADMAP
+- add a function to save the dark frame in RAM 
+- add a second capture page that on load opens a canvas with the captured frame, load the dark frame and subtracts it automatically. The canvas content can be saved manually. 
+
+
+# ORIGINAL README follows
+
 Enhancement of @espressif CameraWebServer to add avi video recording to an SD Card 
 
 
