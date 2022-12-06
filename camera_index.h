@@ -25,12 +25,11 @@ https://gchq.github.io/CyberChef/#recipe=From_Hex('Auto')Gunzip()
 https://gchq.github.io/CyberChef/#recipe=Gzip('Dynamic%20Huffman%20Coding','index.html.gz','',false)To_Hex('0x',0)Split('0x',',%200x')&input=Cg
 
  */
-  
 
 
 
 //index_ov2640_html_gz
-#define index_ov2640_html_len 43961
+#define index_ov2640_html_len 51410
 //#define index_ov2640_html_gz_len 6787
 //const uint8_t index_ov2640_html[] = {
 #include <pgmspace.h>
@@ -436,6 +435,46 @@ const char index_ov2640_html[] PROGMEM = R"===(
                             </div>
                         </section>
 
+
+                        
+                        <section id="astro-section" class="nothidden">
+                        <div class="input-group" id="frametime_value-group">
+                        
+                            <label for="frametime_value">Frame time MSB (0~255)</label>
+                            <div class="text">
+                              <input type="text" id="frametime_value" minlength="1" maxlength="3" size="3" value="0" class="default-action">
+                            </div>
+                            <button class="inline-button" id="set-frametime">Set</button>
+                        </div>
+                        <div class="input-group" id="addvsync_value-group">
+                        
+                            <label for="addvsync_value">Add VSYNC lines MSB (0~255)</label>
+                            <div class="text">
+                              <input type="text" id="addvsync_value"  minlength="1" maxlength="3" size="3" value="0" class="default-action">
+                            </div>
+                            <button class="inline-button" id="set-addvsync">Set</button>
+                        </div>
+                        <div class="input-group" id="luminancehigh_value-group">
+                        
+                            <label for="luminancehigh_value">High luminance limit(best>116): (0~255)</label>
+                            <div class="text">
+                              <input type="text" id="luminancehigh_value" minlength="1" maxlength="3" size="3" value="116" class="default-action">
+                            </div>
+                            <button class="inline-button" id="set-luminancehigh">Set</button>
+                        </div>
+                        <div class="input-group" id="luminancelow_value-group">
+                        
+                            <label for="luminancelow_value">Low luminance limit(best<8): (0~255)</label>
+                            <div class="text">
+                              <input type="text" id="luminancelow_value" minlength="1" maxlength="3" size="3" value="9" class="default-action">
+                            </div>
+                            <button class="inline-button" id="set-luminancelow">Set</button>
+                        </div>
+                        </section>
+
+
+                        
+
                         <div class="input-group" id="framesize-group">
                             <label for="framesize">Resolution</label>
                             <select id="framesize" class="default-action">
@@ -561,6 +600,11 @@ const char index_ov2640_html[] PROGMEM = R"===(
                             <input type="range" id="gainceiling" min="0" max="6" value="0" class="default-action">
                             <div class="range-max">128x</div>
                         </div>
+
+                        
+
+                                                
+                        
                         <div class="input-group" id="bpc-group">
                             <label for="bpc">BPC</label>
                             <div class="switch">
@@ -738,6 +782,22 @@ const char index_ov2640_html[] PROGMEM = R"===(
                                 </div>
                             </div>
                         </section>
+
+                        <hr style="width:100%">
+                        <label for="nav-toggle-sdfm" class="toggle-section-label">&#9776;&nbsp;&nbsp;SD File Manager</label><input type="checkbox" id="nav-toggle-sdfm" class="hidden toggle-section-button" checked="checked">
+                        <section class="toggle-section">
+                            <!--h4>Set SD File Manager (1 = enable servicing, 0 = disable servicing)</h4-->
+                            <div class="input-group" id="sdfm-group">Set SD File Manager <br>(1 = enable servicing, 0 = disable servicing)<br>
+                                <label for="set-sdfm">Value</label>
+                                <div class="text">
+                                    <input id="sdfm-enable" type="number" min="0" max="1" value="0">
+                                </div>
+                                <button class="inline-button" id="set-sdfm">Set</button>
+                            </div>
+                        </section>
+
+
+                        
                         <hr style="width:100%">
                         <label for="nav-toggle-2640pll" class="toggle-section-label">&#9776;&nbsp;&nbsp;CLK</label><input type="checkbox" id="nav-toggle-2640pll" class="hidden toggle-section-button" checked="checked">
                         <section class="toggle-section">
@@ -854,6 +914,30 @@ document.addEventListener('DOMContentLoaded', function (event) {
     fetchUrl(`${baseHost}/xclk?xclk=${xclk}`, cb);
   }
 
+  function setFrametime(frametime, cb){
+    fetchUrl(`${baseHost}/frametime?frametime=${frametime}`, cb);
+  }
+
+  function setAddvsync(addvsync, cb){
+    fetchUrl(`${baseHost}/addvsync?addvsync=${addvsync}`, cb);
+  }
+
+  function setLuminancehigh(luminancehigh, cb){
+    fetchUrl(`${baseHost}/luminancehigh?luminancehigh=${luminancehigh}`, cb);
+  }
+
+  function setLuminancelow(luminancelow, cb){
+    fetchUrl(`${baseHost}/luminancelow?luminancelow=${luminancelow}`, cb);
+  }
+
+
+
+
+
+  function setSDfm(sdfm, cb){
+    fetchUrl(`${baseHost}/sdfm?sdfm=${sdfm}`, cb);
+  }
+
   function setWindow(start_x, start_y, end_x, end_y, offset_x, offset_y, total_x, total_y, output_x, output_y, scaling, binning, cb){
     fetchUrl(`${baseHost}/resolution?sx=${start_x}&sy=${start_y}&ex=${end_x}&ey=${end_y}&offx=${offset_x}&offy=${offset_y}&tx=${total_x}&ty=${total_y}&ox=${output_x}&oy=${output_y}&scale=${scaling}&binning=${binning}`, cb);
   }
@@ -891,6 +975,67 @@ document.addEventListener('DOMContentLoaded', function (event) {
     let xclk = parseInt(document.getElementById('xclk').value);
 
     setXclk(xclk, function(code, txt){
+      if(code != 200){
+        alert('Error['+code+']: '+txt);
+      }
+    });
+  }
+
+  const setFrametimeButton = document.getElementById('set-frametime')
+  setFrametimeButton.onclick = () => {
+    let frametime = parseInt(document.getElementById('frametime_value').value);
+
+    setFrametime(frametime, function(code, txt){
+      if(code != 200){
+        alert('Error['+code+']: '+txt);
+      }
+    });
+  }
+
+  const setAddvsyncButton = document.getElementById('set-addvsync')
+  setAddvsyncButton.onclick = () => {
+    let addvsync = parseInt(document.getElementById('addvsync_value').value);
+
+    setAddvsync(addvsync, function(code, txt){
+      if(code != 200){
+        alert('Error['+code+']: '+txt);
+      }
+    });
+  }
+
+  const setLuminancehighButton = document.getElementById('set-luminancehigh')
+  setLuminancehighButton.onclick = () => {
+    let luminancehigh = parseInt(document.getElementById('luminancehigh_value').value);
+
+    setLuminancehigh(luminancehigh, function(code, txt){
+      if(code != 200){
+        alert('Error['+code+']: '+txt);
+      }
+    });
+  }
+
+  const setLuminancelowButton = document.getElementById('set-luminancelow')
+  setLuminancelowButton.onclick = () => {
+    let luminancelow = parseInt(document.getElementById('luminancelow_value').value);
+
+    setLuminancelow(luminancelow, function(code, txt){
+      if(code != 200){
+        alert('Error['+code+']: '+txt);
+      }
+    });
+  }
+
+
+
+
+
+
+
+  const setSDfmButton = document.getElementById('set-sdfm')
+  setSDfmButton.onclick = () => {
+    let sdfm = parseInt(document.getElementById('sdfm-enable').value);
+
+    setSDfm(sdfm, function(code, txt){
       if(code != 200){
         alert('Error['+code+']: '+txt);
       }

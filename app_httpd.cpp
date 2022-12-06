@@ -8,6 +8,13 @@
  * 
 */
 
+/*
+*
+* notice: 20221128 - Modified to allow extremely long exposures during night time -- PI
+*
+*
+*
+*/
 
 // Copyright 2015-2016 Espressif Systems (Shanghai) PTE LTD
 //
@@ -31,6 +38,7 @@
 #include "sdkconfig.h"
 #include "camera_index.h"
 
+
 //jz additions
 #include <Arduino.h>
 extern int framesize;
@@ -39,6 +47,11 @@ extern int frame_interval;
 extern int speed_up_factor;
 extern int start_record;
 extern int freespace;
+
+// pi additions
+//#include "settings.h"
+extern uint8_t SDfilemanagerActive;
+
 
 #if defined(ARDUINO_ARCH_ESP32) && defined(CONFIG_ARDUHAL_ESP_LOG)
 #include "esp32-hal-log.h"
@@ -101,6 +114,8 @@ bool isStreaming = false;
 #define CONFIG_LED_LEDC_SPEED_MODE LEDC_HIGH_SPEED_MODE
 #endif
 #endif
+
+
 
 typedef struct
 {
@@ -316,11 +331,31 @@ static esp_err_t bmp_handler(httpd_req_t *req)
   esp_err_t res = ESP_OK;
   uint64_t fr_start = esp_timer_get_time();
   fb = esp_camera_fb_get();
+
+  int baseDelay = 100; // 10 * 10ms
+  int limitDelay = 30; //max number of attempts
+  int incDelay = 100; 
+  int countDelay = 0;
+  int useDelay = baseDelay;
+  
   if (!fb)
   {
-    ESP_LOGE(TAG, "Camera capture failed");
-    httpd_resp_send_500(req);
-    return ESP_FAIL;
+    
+    while ((!fb) && (countDelay < limitDelay)) {
+      ESP_LOGE(TAG, "Camera capture attempt number %d, ticks %d", countDelay, useDelay);
+      vTaskDelay(useDelay);
+      fb = esp_camera_fb_get();
+
+      countDelay++;
+      useDelay = useDelay + countDelay * incDelay;
+      
+    }
+    if (!fb) {
+      ESP_LOGE(TAG, "Camera capture failed");
+      httpd_resp_send_500(req);
+      return ESP_FAIL;
+    }
+    
   }
 
   httpd_resp_set_type(req, "image/x-windows-bmp");
@@ -373,17 +408,68 @@ static esp_err_t capture_handler(httpd_req_t *req)
   enable_led(true);
   vTaskDelay(150 / portTICK_PERIOD_MS); // The LED needs to be turned on ~150ms before the call to esp_camera_fb_get()
   fb = esp_camera_fb_get();             // or it won't be visible in the frame. A better way to do this is needed.
+  int baseDelay = 100; // 10 * 10ms
+  int limitDelay = 30; //max number of attempts
+  int incDelay = 100; 
+  int countDelay = 0;
+  int useDelay = baseDelay;
+  
+  if (!fb)
+  {
+    
+    while ((!fb) && (countDelay < limitDelay)) {
+      ESP_LOGE(TAG, "Camera capture attempt number %d, ticks %d", countDelay, useDelay);
+      vTaskDelay(useDelay);
+      fb = esp_camera_fb_get();
+
+      countDelay++;
+      useDelay = useDelay + countDelay * incDelay;
+      
+    }
+    if (!fb) {
+      ESP_LOGE(TAG, "Camera capture failed");
+      httpd_resp_send_500(req);
+      return ESP_FAIL;
+    }
+    
+  }
   enable_led(false);
 #else
   fb = esp_camera_fb_get();
-#endif
+  int baseDelay = 100; // 10 * 10ms
+  int limitDelay = 30; //max number of attempts
+  int incDelay = 100; 
+  int countDelay = 0;
+  int useDelay = baseDelay;
+  
+  if (!fb)
+  {
+    
+    while ((!fb) && (countDelay < limitDelay)) {
+      ESP_LOGE(TAG, "Camera capture attempt number %d, ticks %d", countDelay, useDelay);
+      vTaskDelay(useDelay);
+      fb = esp_camera_fb_get();
 
+      countDelay++;
+      useDelay = useDelay + countDelay * incDelay;
+      
+    }
+    if (!fb) {
+      ESP_LOGE(TAG, "Camera capture failed");
+      httpd_resp_send_500(req);
+      return ESP_FAIL;
+    }
+    
+  }
+#endif
+/*
   if (!fb)
   {
     ESP_LOGE(TAG, "Camera capture failed");
     httpd_resp_send_500(req);
     return ESP_FAIL;
   }
+  */
 
   httpd_resp_set_type(req, "image/jpeg");
   httpd_resp_set_hdr(req, "Content-Disposition", "inline; filename=capture.jpg");
@@ -569,11 +655,31 @@ static esp_err_t stream_handler(httpd_req_t *req)
 #endif
 
     fb = esp_camera_fb_get();
-    if (!fb)
-    {
+  int baseDelay = 100; // 10 * 10ms
+  int limitDelay = 30; //max number of attempts
+  int incDelay = 100; 
+  int countDelay = 0;
+  int useDelay = baseDelay;
+  
+  if (!fb)
+  {
+    
+    while ((!fb) && (countDelay < limitDelay)) {
+      ESP_LOGE(TAG, "Camera capture attempt number %d, ticks %d", countDelay, useDelay);
+      vTaskDelay(useDelay);
+      fb = esp_camera_fb_get();
+
+      countDelay++;
+      useDelay = useDelay + countDelay * incDelay;
+      
+    }
+    if (!fb) {
       ESP_LOGE(TAG, "Camera capture failed");
+      httpd_resp_send_500(req);
       res = ESP_FAIL;
     }
+    
+  }
     else
     {
       _timestamp.tv_sec = fb->timestamp.tv_sec;
@@ -1035,6 +1141,201 @@ static esp_err_t xclk_handler(httpd_req_t *req)
   return httpd_resp_send(req, NULL, 0);
 }
 
+
+static esp_err_t sdfm_handler(httpd_req_t *req)
+{
+  char *buf = NULL;
+  char _sdfm[32];
+
+  if (parse_get(req, &buf) != ESP_OK) {
+    return ESP_FAIL;
+  }
+  if (httpd_query_key_value(buf, "sdfm", _sdfm, sizeof(_sdfm)) != ESP_OK) {
+    free(buf);
+    httpd_resp_send_404(req);
+    return ESP_FAIL;
+  }
+  free(buf);
+
+  int sdfm = atoi(_sdfm);
+  ESP_LOGI(TAG, "Set SDfm: %d ", sdfm);
+
+  SDfilemanagerActive = sdfm;
+  
+  //sensor_t *s = esp_camera_sensor_get();
+  //int res = s->set_xclk(s, LEDC_TIMER_0, xclk);
+  //if (res) {
+  //  return httpd_resp_send_500(req);
+  //}
+
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  return httpd_resp_send(req, NULL, 0);
+}
+
+
+
+static esp_err_t frametime_handler(httpd_req_t *req)
+{
+  char *buf = NULL;
+
+  char _val[32];
+
+  if (parse_get(req, &buf) != ESP_OK) {
+    return ESP_FAIL;
+  }
+  if (httpd_query_key_value(buf, "frametime", _val, sizeof(_val)) != ESP_OK) {
+    free(buf);
+    httpd_resp_send_404(req);
+    return ESP_FAIL;
+  }
+  free(buf);
+
+
+  int val = atoi(_val);
+  ESP_LOGI(TAG, "Set Frametime, value: 0x%02x", val);
+
+  sensor_t *s = esp_camera_sensor_get();
+
+  if ((s->id.PID != OV2640_PID)) {
+    return httpd_resp_send_500(req);
+  }
+  
+  int res = s->set_reg(s, 0xff, 0xff, 0x01); // select register bank 1 for OV2640
+  if (res) {
+    return httpd_resp_send_500(req);
+  }
+  res = s->set_reg(s, 0x47, 0xff, val);
+  if (res) {
+    return httpd_resp_send_500(req);
+  }
+
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  return httpd_resp_send(req, NULL, 0);
+}
+
+
+
+static esp_err_t addvsync_handler(httpd_req_t *req)
+{
+  char *buf = NULL;
+
+  char _val[32];
+
+  if (parse_get(req, &buf) != ESP_OK) {
+    return ESP_FAIL;
+  }
+  if (httpd_query_key_value(buf, "addvsync", _val, sizeof(_val)) != ESP_OK) {
+    free(buf);
+    httpd_resp_send_404(req);
+    return ESP_FAIL;
+  }
+  free(buf);
+
+
+  int val = atoi(_val);
+  ESP_LOGI(TAG, "Set Addvsync value: 0x%02x", val);
+
+  sensor_t *s = esp_camera_sensor_get();
+
+  if ((s->id.PID != OV2640_PID)) {
+    return httpd_resp_send_500(req);
+  }
+  
+  int res = s->set_reg(s, 0xff, 0xff, 0x01); // select register bank 1 for OV2640
+  if (res) {
+    return httpd_resp_send_500(req);
+  }
+  res = s->set_reg(s, 0x2e, 0xff, val);
+  if (res) {
+    return httpd_resp_send_500(req);
+  }
+
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  return httpd_resp_send(req, NULL, 0);
+}
+
+
+
+static esp_err_t luminancehigh_handler(httpd_req_t *req)
+{
+  char *buf = NULL;
+
+  char _val[32];
+
+  if (parse_get(req, &buf) != ESP_OK) {
+    return ESP_FAIL;
+  }
+  if (httpd_query_key_value(buf, "luminancehigh", _val, sizeof(_val)) != ESP_OK) {
+    free(buf);
+    httpd_resp_send_404(req);
+    return ESP_FAIL;
+  }
+  free(buf);
+
+
+  int val = atoi(_val);
+  ESP_LOGI(TAG, "Set Luminancehigh value: 0x%02x", val);
+
+  sensor_t *s = esp_camera_sensor_get();
+
+  if ((s->id.PID != OV2640_PID)) {
+    return httpd_resp_send_500(req);
+  }
+  
+  int res = s->set_reg(s, 0xff, 0xff, 0x01); // select register bank 1 for OV2640
+  if (res) {
+    return httpd_resp_send_500(req);
+  }
+  res = s->set_reg(s, 0x24, 0xff, val);
+  if (res) {
+    return httpd_resp_send_500(req);
+  }
+
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  return httpd_resp_send(req, NULL, 0);
+}
+
+
+static esp_err_t luminancelow_handler(httpd_req_t *req)
+{
+  char *buf = NULL;
+
+  char _val[32];
+
+  if (parse_get(req, &buf) != ESP_OK) {
+    return ESP_FAIL;
+  }
+  if (httpd_query_key_value(buf, "luminancelow", _val, sizeof(_val)) != ESP_OK) {
+    free(buf);
+    httpd_resp_send_404(req);
+    return ESP_FAIL;
+  }
+  free(buf);
+
+
+  int val = atoi(_val);
+  ESP_LOGI(TAG, "Set Luminancelow value: 0x%02x", val);
+
+  sensor_t *s = esp_camera_sensor_get();
+
+  if ((s->id.PID != OV2640_PID)) {
+    return httpd_resp_send_500(req);
+  }
+  
+  int res = s->set_reg(s, 0xff, 0xff, 0x01); // select register bank 1 for OV2640
+  if (res) {
+    return httpd_resp_send_500(req);
+  }
+  res = s->set_reg(s, 0x25, 0xff, val);
+  if (res) {
+    return httpd_resp_send_500(req);
+  }
+
+  httpd_resp_set_hdr(req, "Access-Control-Allow-Origin", "*");
+  return httpd_resp_send(req, NULL, 0);
+}
+
+
 static esp_err_t reg_handler(httpd_req_t *req)
 {
   char *buf = NULL;
@@ -1243,7 +1544,7 @@ static esp_err_t stoprecord_handler(httpd_req_t *req){  //jz
 void startCameraServer()
 {
   httpd_config_t config = HTTPD_DEFAULT_CONFIG();
-  config.max_uri_handlers = 16;
+  config.max_uri_handlers = 21;
 
   httpd_uri_t index_uri = {
     .uri = "/",
@@ -1308,6 +1609,41 @@ void startCameraServer()
     .user_ctx = NULL
   };
 
+  httpd_uri_t frametime_uri = {
+    .uri = "/frametime",
+    .method = HTTP_GET,
+    .handler = frametime_handler,
+    .user_ctx = NULL
+  };
+
+  httpd_uri_t addvsync_uri = {
+    .uri = "/addvsync",
+    .method = HTTP_GET,
+    .handler = addvsync_handler,
+    .user_ctx = NULL
+  };
+
+  httpd_uri_t luminancehigh_uri = {
+    .uri = "/luminancehigh",
+    .method = HTTP_GET,
+    .handler = luminancehigh_handler,
+    .user_ctx = NULL
+  };
+
+  httpd_uri_t luminancelow_uri = {
+    .uri = "/luminancelow",
+    .method = HTTP_GET,
+    .handler = luminancelow_handler,
+    .user_ctx = NULL
+  };
+
+  httpd_uri_t sdfm_uri = {
+    .uri = "/sdfm",
+    .method = HTTP_GET,
+    .handler = sdfm_handler,
+    .user_ctx = NULL
+  };
+
   httpd_uri_t reg_uri = {
     .uri = "/reg",
     .method = HTTP_GET,
@@ -1357,6 +1693,13 @@ void startCameraServer()
     httpd_register_uri_handler(camera_httpd, &stoprecord_uri);
 
     httpd_register_uri_handler(camera_httpd, &xclk_uri);
+    
+    httpd_register_uri_handler(camera_httpd, &frametime_uri);
+    httpd_register_uri_handler(camera_httpd, &addvsync_uri);
+    httpd_register_uri_handler(camera_httpd, &luminancehigh_uri);
+    httpd_register_uri_handler(camera_httpd, &luminancelow_uri);
+    
+    httpd_register_uri_handler(camera_httpd, &sdfm_uri);
     httpd_register_uri_handler(camera_httpd, &reg_uri);
     httpd_register_uri_handler(camera_httpd, &greg_uri);
     httpd_register_uri_handler(camera_httpd, &pll_uri);
