@@ -40,7 +40,7 @@ Next, cover the objective lens, go to the default capture page ( http://192.168.
 
 - I recommend cooling the sensor, if possible. The difference in dark current from 20C ambient temperature to 5C is DRAMATIC. 
 
-See these sample pictures taken with a wide angle objective: 
+See these sample pictures taken with a wide angle objective (XCLOCK 1MHz, ADDVSYNC 255 (maxed), AEC fully disabled and exposure set to 1200, AGC disabled and analog gain set to 1, prescaler left untouched, with these parameters the exposure time is in the order of one minute): 
 
 20C ambient temperature dark frame, lens correction enabled:
 ![image](https://github.com/paoloinverse/CameraWebServerRecordeR_AstroEdition/blob/main/dark_frame_VSHMSB255_EXP1200_GAIN1_1Meg_LC_20deg.jpg)
