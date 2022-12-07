@@ -42,19 +42,19 @@ Next, cover the objective lens, go to the default capture page ( http://192.168.
 
 See these sample pictures taken with a wide angle objective (XCLOCK 1MHz, ADDVSYNC 255 (maxed), AEC fully disabled and exposure set to 1200, AGC disabled and analog gain set to 1, prescaler left untouched, with these parameters the exposure time is in the order of one minute): 
 
-20C ambient temperature dark frame, lens correction enabled:
+20 Celsius ambient temperature dark frame, lens correction enabled:
 ![image](https://github.com/paoloinverse/CameraWebServerRecordeR_AstroEdition/blob/main/dark_frame_VSHMSB255_EXP1200_GAIN1_1Meg_LC_20deg.jpg)
 
-20C ambient temperature dark frame, NO lens correction:
+20 Celsius ambient temperature dark frame, NO lens correction:
 ![image](https://github.com/paoloinverse/CameraWebServerRecordeR_AstroEdition/blob/main/dark_frame_VSHMSB255_EXP1200_GAIN1_1Meg_noLC_20deg.jpg)
 
-5C ambient temperature dark frame, NO lens correction:
+5 Celsius ambient temperature dark frame, NO lens correction:
 ![image](https://github.com/paoloinverse/CameraWebServerRecordeR_AstroEdition/blob/main/dark_frame_VSHMSB255_EXP1200_GAIN1_1Meg_noLC_5deg.jpg)
 
-3C ambient temperature dark frame, NO lens correction:
+3 Celsius ambient temperature dark frame, NO lens correction:
 ![image](https://github.com/paoloinverse/CameraWebServerRecordeR_AstroEdition/blob/main/dark_frame_VSHMSB255_EXP1200_GAIN1_1Meg_noLC_3deg.jpg)
 
-3C sample shot with a wide angle lens. The red light is from a tiny red led from the portable battery bank. The scene was shot on a 3/4 moon lit area during night time. It looks like day. Please don't mind the objective, it's a tiny lens of poor quality with the infrared filter removed.
+3C ambient temperature, sample shot with a wide angle lens. The red light is from a tiny red led from the portable battery bank. The scene was shot on a 3/4 moon lit area during night time. It looks like day. Please don't mind the objective, it's a tiny lens of poor quality with the infrared filter removed.
 See why it is important to save the dark frame and subtract it afterwards? Hot pixels can no longer be kept under control by the camera internal DSP, so it's best to subtact them externally during the post processing.
 ![image](https://github.com/paoloinverse/CameraWebServerRecordeR_AstroEdition/blob/main/sample_frame_VSHMSB255_EXP1200_GAIN1_1Meg_noLC_3deg.jpg)
 
